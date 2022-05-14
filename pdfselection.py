@@ -1,13 +1,38 @@
+from distutils.file_util import copy_file
 from posixpath import split
 import pandas as pd
-import os
+import os, shutil
 import re
 import PyPDF2
+from utilhealthai import Util
 
 list_comorbidities = ['Chronic kidney disease','CKD V','Hypertension','Urinary tract infection','Iron Deficiency' \
     'HTN','Chronic Obstructive Pulmonary Disease','COPD','chronic interstitial lung disease']
 TOP_TABLETS = ['dexamethasone', 'pantoprazole', 'aciclovir', 'ecosprin', 'benadon', 'cyclophosphamide', 'thalidomide', 'febuxostat', 'lafutidine', 'amlodipine'] #by code
 TOP_TABLETS = [tab.upper() for tab in TOP_TABLETS]
+
+# replacement function to convert uppercase letter to lowercase
+def add_space_inbetween(match_obj):
+    if match_obj.group() is not None:
+        return " ".join(match_obj.group())
+
+def pre_process(file_txt):
+    file_txt_replaced = re.sub('\d[A-Z]', add_space_inbetween, file_txt)
+    return file_txt_replaced 
+
+def copy_admission_file(file_name):
+    # pdf_dirs = ["C:\\Users\\prati\\Downloads\\patients_pdfs\\patients from 9th August 2019", "C:\\Users\\prati\\Downloads\\patients_pdfs\\Patients2"]
+    dir_processed_txt = ["C:\\Users\\prati\\Downloads\\patients from 9th August 2019 txt", "C:\\Users\\prati\\Downloads\\p2_txt", "C:\\Users\\prati\\Downloads\\p3_txt"]
+    for foldr in dir_processed_txt:
+        all_files = os.listdir(foldr)
+        if file_name in all_files:
+            if foldr == "C:\\Users\\prati\\Downloads\\patients from 9th August 2019 txt":
+                shutil.copy(os.path.join(foldr,file_name), 'C:\\Users\\prati\\Documents\\health_ai_doc\\myeloma_admission_pdfs\\'+file_name+"_p5")
+            elif foldr == "C:\\Users\\prati\\Downloads\\p2_txt":
+                shutil.copy(os.path.join(foldr,file_name), 'C:\\Users\\prati\\Documents\\health_ai_doc\\myeloma_admission_pdfs\\'+file_name+"_p2")
+            elif foldr == "C:\\Users\\prati\\Downloads\\p3_txt":
+                shutil.copy(os.path.join(foldr,file_name), 'C:\\Users\\prati\\Documents\\health_ai_doc\\myeloma_admission_pdfs\\'+file_name+"_p3")    
+
 def read_myeloma_excel():
     df = pd.read_excel("C:\\Users\\prati\\Downloads\\Myeloma patients of Prantar.xlsx")
     df['Sex'] = df['Sex'].str.strip() 
@@ -37,7 +62,8 @@ def find_matched_files(df):
         #     print(file_name_from_df)
     print(matched_files)
     return matched_files
-def extract_using_type2(extracted_txt, filename, directory):
+
+def extract_using_type2_office_id(extracted_txt, filename, directory):
     with open(os.path.join(directory,filename), 'r', errors='ignore') as fl:
         newlines1 = []
         newlines2 = []
@@ -53,8 +79,9 @@ def extract_using_type2(extracted_txt, filename, directory):
         extracted_txt = "".join(newlines1) + "".join(newlines1)
         # extracted_txt.writelines(newlines2)
     tmp_dict = {"file":filename}
-    if any(x in extracted_txt.lower() for x in ['admission', 'hospitalisation']):
+    if any(x in extracted_txt[400:].lower() for x in ['admission', 'hospitalisation']): #for discarding admission in notes sections
         tmp_dict["admission"] = 1      #true 
+        copy_admission_file(filename)
     else:
         tmp_dict["admission"] = 0
     name = re.search("(?<=Name:\s)(.*)(?=\n)", extracted_txt)
@@ -188,8 +215,9 @@ def extract_using_type2(extracted_txt, filename, directory):
 
 def extract_using_type1(txt, filename):
     tmp_dict = {"file":filename}
-    if any(x in txt.lower() for x in ['admission', 'hospitalisation']):
+    if any(x in txt[400:].lower() for x in ['admission', 'hospitalisation']): #for discarding admission in notes sections
         tmp_dict["admission"] = 1      #true 
+        copy_admission_file(filename)
     else:
         tmp_dict["admission"] = 0
     # print(txt)
@@ -230,7 +258,7 @@ def extract_using_type1(txt, filename):
     for two_no in two_nos:
         notes = notes.replace(two_no, ".".join(re.split(" |,", two_no)))
     # print(notes)
-    matched_txt = re.findall("((\w+\s+){1,3}[0-9.%\/0-9]+\s(gm\/dL|gm\/dl|mg\/dl|mg\/dL|fl|fL|\/ul|\/uL|mmHg|Cms|million\/ul|million\/uL|mm\/hr|units\/L|mmHg|Cms.|Kg.|pg|%|kg\/m2|mmol\/L){0,1})", notes, re.DOTALL)
+    matched_txt = re.findall("(([a-zA-Z]+\s+){1,3}[0-9.%\/0-9]+\s(gm\/dL|gm\/dl|mg\/dl|mg\/dL|fl|fL|\/ul|\/uL|mmHg|Cms|million\/ul|million\/uL|mm\/hr|units\/L|mmHg|Cms.|Kg.|pg|%|kg\/m2|mmol\/L){0,1})", notes, re.DOTALL)
     if not matched_txt:
         print(filename)
         probable_test_name_values = notes.split(',')
@@ -284,13 +312,14 @@ def create_csv(matched_files):
         extracted_entities_by_page = []
         dir_processed_txt = ["C:\\Users\\prati\\Downloads\\patients from 9th August 2019 txt", "C:\\Users\\prati\\Downloads\\p2_txt", "C:\\Users\\prati\\Downloads\\p3_txt"]
         for dir in dir_processed_txt:
+            Util().delete_duplcate_files(dir)
             for filename in os.listdir(dir):
-                if filename.endswith(".txt") and filename[:-4] in matched_files:# and filename == "chandan mukhopadhyay.pdf.txt": 
+                if filename.endswith(".txt") and filename[:-4] in matched_files:# and filename == "swapan kumar chowdhury1.pdf.txt": 
                     with open(os.path.join(dir,filename), 'r', errors='ignore') as fl:
                         txt = fl.read() 
-                          
+                        txt = pre_process(txt)  
                         if "Office ID" in txt:
-                            tmp_dict = extract_using_type2(txt, filename, dir)
+                            tmp_dict = extract_using_type2_office_id(txt, filename, dir)
                         else:
                             tmp_dict = extract_using_type1(txt, filename)
                         #adding tablets binary col
@@ -298,7 +327,7 @@ def create_csv(matched_files):
                             for item in TOP_TABLETS:
                                 if item in tmp_dict['tablets']:
                                     tmp_dict["TAB_"+item] = 1
-                        if "comorbidity" in tmp_dict:
+                        if "comorbidity" in tmp_dict: 
                             for item in list_comorbidities:
                                 if item in tmp_dict['comorbidity']:
                                     tmp_dict[item] = 1    
@@ -336,11 +365,11 @@ def create_csv(matched_files):
     # df.HEMOGLOBIN.fillna(df.HB, inplace=True)
 
     # df['FASTING BLOOD GLUCOSE'].str.cat(df['FBS']).str.cat(df['SUGAR(F)']).str.cat(df['SUGAR (F)'])
-    df.HEMOGLOBIN.fillna(df.HB, inplace=True)
+    # df.CREATININE.fillna(df.creatinine, inplace=True)
     df.drop(['ALP', 'FBS', 'PLATELET COUNT', 'PCV', 'RBC COUNT', 'GLB', 'ALB', 'HB', 'PLT', 'SUGAR (F)', 'SUGAR(F)', 'PPBS', 'SUGAR(PP)', 'PROTEIN', 'TOTAL PROTEINS', \
         'TP'], axis=1, inplace=True)
     
-  
+    # print(df.columns)
     df = df.dropna(thresh=df.shape[0]*0.02,how='all',axis='columns')
     print(len(df.columns))
     print(df.columns)
@@ -348,12 +377,12 @@ def create_csv(matched_files):
     # df = df.drop_duplicates(subset=['date', 'office_id'], keep='first').sort_values([ "Name"])#, 'date'])
     df = df.sort_values([ "Name"])#, 'date'])
     # df = df.sort_index(axis=1)
-    df.to_excel("C:\\Users\\prati\\Downloads\\patient_data_apr4_v3.xlsx", encoding='utf-8', index=False)
+    df.to_excel("C:\\Users\\prati\\Downloads\\patient_data_may14_v1.xlsx", encoding='utf-8', index=False)
     # all_tablets = " ".join(df['tablets'].str.cat(sep=' ').split('\n')).lower().split()
     # print(all_tablets)
     # from collections import Counter
     # print(Counter(all_tablets))
-if __name__ == "__main__":
+if __name__ == "__main__":    
     df_myeloma = read_myeloma_excel()
     matched_files = find_matched_files(df_myeloma)
     create_csv(matched_files)
