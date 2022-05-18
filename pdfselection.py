@@ -361,13 +361,15 @@ def create_csv(matched_files):
     df.GLOBULIN.fillna(df.GLB, inplace=True)
     df.ALBUMIN.fillna(df.ALB, inplace=True)
     df.HEMOGLOBIN.fillna(df.HB, inplace=True)
-    # df.HEMOGLOBIN.fillna(df.HB, inplace=True)
-    # df.HEMOGLOBIN.fillna(df.HB, inplace=True)
+    df['ABSOLUTE LYMPHOCYTE COUNT'].fillna(df.ALC, inplace=True)
+    df['ABSOLUTE NEUTROPHIL COUNT'].fillna(df.ANC, inplace=True)
+    df['CALCIUM'].fillna(df['S CALCIUM'], inplace=True)
+    df['CREATININE'].fillna(df['SERUM CREATININE'], inplace=True)
 
     # df['FASTING BLOOD GLUCOSE'].str.cat(df['FBS']).str.cat(df['SUGAR(F)']).str.cat(df['SUGAR (F)'])
     # df.CREATININE.fillna(df.creatinine, inplace=True)
     df.drop(['ALP', 'FBS', 'PLATELET COUNT', 'PCV', 'RBC COUNT', 'GLB', 'ALB', 'HB', 'PLT', 'SUGAR (F)', 'SUGAR(F)', 'PPBS', 'SUGAR(PP)', 'PROTEIN', 'TOTAL PROTEINS', \
-        'TP'], axis=1, inplace=True)
+        'TP','SERUM CREATININE', 'S CALCIUM', 'ANC', 'ALC'], axis=1, inplace=True)
     
     # print(df.columns)
     df = df.dropna(thresh=df.shape[0]*0.02,how='all',axis='columns')
@@ -377,7 +379,7 @@ def create_csv(matched_files):
     # df = df.drop_duplicates(subset=['date', 'office_id'], keep='first').sort_values([ "Name"])#, 'date'])
     df = df.sort_values([ "Name"])#, 'date'])
     # df = df.sort_index(axis=1)
-    df.to_excel("C:\\Users\\prati\\Downloads\\patient_data_may14_v1.xlsx", encoding='utf-8', index=False)
+    df.to_excel("C:\\Users\\prati\\Downloads\\patient_data_may18_v2.xlsx", encoding='utf-8', index=False)
     # all_tablets = " ".join(df['tablets'].str.cat(sep=' ').split('\n')).lower().split()
     # print(all_tablets)
     # from collections import Counter
