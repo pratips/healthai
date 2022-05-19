@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
+# from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import metrics
 
 class Ml:
   def __init__(self):
@@ -11,11 +14,12 @@ class Ml:
   def build_rf(self):
     dataset = pd.read_excel("C:\\Users\\prati\\Downloads\\patient_data_may18_v2.xlsx")
     print(dataset.head())
-    dataset = dataset[['admission',  'age', 'HEMOGLOBIN', 'PLATELET', 'CREATININE', 'PACKED CELL VOLUME', 'MCV', 'RBC', 'MCH']]
+    dataset = dataset[['admission', 'age', 'gender', 'HEMOGLOBIN', 'PLATELET', 'CREATININE', 'PACKED CELL VOLUME', 'MCV', 'RBC', 'MCH', 'ESR', 'SGPT', 'CALCIUM', 'ALBUMIN', 'SGOT']]
+    dataset = pd.get_dummies(dataset, columns = ['gender'])
     print(dataset.head())
     print(dataset.dtypes)
     # dataset['HEMOGLOBIN'] = dataset['HEMOGLOBIN'].str.replace('%|.', '')
-    # dataset['PACKED CELL VOLUME'] = dataset['PACKED CELL VOLUME'].str.replace('%|.', '')
+    # dataset['PACKED CELL VOLUME'] = dataset['PACKED CELL VOLUME'].str.replace('%|.', '')     
     dataset = dataset.replace('%', '', regex=True)
     # dataset = dataset.replace('/.', '', regex=True)
     dataset = dataset.replace('\n','', regex=True)
@@ -24,46 +28,42 @@ class Ml:
     dataset = dataset.replace('', np.nan, regex=True)
     dataset = dataset.astype(float)
     print(dataset.head())
-    print(dataset.groupby('admission', as_index=False)['PLATELET'].mean())
-    print(dataset.groupby('admission', as_index=False)['HEMOGLOBIN'].mean())
-    print(dataset.groupby('admission', as_index=False)['CREATININE'].mean())
-    print(dataset.groupby('admission', as_index=False)['MCV'].mean())
-    print(dataset.groupby('admission', as_index=False)['RBC'].mean())
-    print(dataset.groupby('admission', as_index=False)['MCH'].mean())
+    # dict_mean = {}
+    cols_for_mean = ['HEMOGLOBIN', 'PLATELET', 'CREATININE', 'PACKED CELL VOLUME', 'MCV', 'RBC', 'MCH', 'RBC', 'MCH', 'ESR', 'SGPT', 'CALCIUM', 'ALBUMIN', 'SGOT']
+    for col in cols_for_mean:
+      tmp_df = dataset.groupby('admission', as_index=False)[col].mean()
+      # dict_mean[col] = {'0':tmp_df.iloc[0,1], '1':tmp_df.iloc[1,1]}
+      dataset.loc[(dataset['admission'] == 0.0) & (np.isnan(dataset[col])), col] = tmp_df.iloc[0,1]
+      dataset.loc[(dataset['admission'] == 1.0) & (np.isnan(dataset[col])), col] = tmp_df.iloc[1,1]
+    # print(dict_mean)
+    # print(dataset.head(50))
     # return
-    # dataset.loc[dataset["admission"] == 0.0, "PLATELET"] = 1
     dataset.fillna(dataset.mean(), inplace=True)
     print(dataset.head())
     # To calculate mean use imputer class
     # imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
-    # imputer = imputer.fit(dataset)
-  
+    # imputer = imputer.fit(dataset)  
     # dataset = imputer.transform(dataset)
 
     X = dataset.iloc[:, 1:].values
-    y = dataset.iloc[:, 0].values
-    
+    y = dataset.iloc[:, 0].values    
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
     # Feature Scaling
-    from sklearn.preprocessing import StandardScaler
-
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
 
-    from sklearn.ensemble import RandomForestClassifier
     classifier = RandomForestClassifier(n_estimators=50, random_state=0)
     classifier.fit(X_train, y_train)
     y_pred = classifier.predict(X_test)
-
-    from sklearn import metrics
 
     print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))
     print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))
     print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
     target_names = ['0', '1']
     print(classification_report(y_test, y_pred, target_names=target_names))
+    
 if __name__ == "__main__":    
     # file = "C:\\Users\\prati\\Documents\\health_ai_doc\\data\\p2_txt - Copy"
     ml = Ml()
